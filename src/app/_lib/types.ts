@@ -4,6 +4,8 @@ export interface IUser {
     surname: string;
     login: string
     password: string
+    attempts: number
+    time: number
 }
 
 export interface ISession {

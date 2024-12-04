@@ -15,8 +15,8 @@ export const getAllUsers = () => {
 }
 
 export const insertUser = (user: InputUser): db.RunResult => {
-    return sql.prepare(`INSERT INTO users(name, surname, login, password)
-                        VALUES(@name, @surname, @login, @password)                    
+    return sql.prepare(`INSERT INTO users(name, surname, login, password, attempts, time)
+                        VALUES(@name, @surname, @login, @password, @attempts, @time)                    
     `).run(user)
 }
 
@@ -46,6 +46,14 @@ export const removeSession = (token: string) => {
     return null
 }
 
-export const updateSessionExpiry = async (token:string, newExpiryTime:number) => {
+export const updateSessionExpiry = async (token: string, newExpiryTime: number) => {
     sql.prepare("UPDATE session SET expires = ? WHERE id = ?").run(newExpiryTime, token)
+}
+
+export const updateAttempts = async (attempts: number, id: number) => {
+    sql.prepare("UPDATE users SET attempts = ? WHERE id = ?").run(attempts, id)
+}
+
+export const updateTime = async (time: number, id: number) => {
+    sql.prepare("UPDATE users SET time = ? WHERE id = ?").run(time, id)
 }

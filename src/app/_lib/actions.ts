@@ -1,7 +1,10 @@
 "use server"
 
 import { redirect } from "next/navigation"
-import { createSession, getSession, getUserById, getUserByLogin, insertUser, removeSession, updateSessionExpiry } from "./model"
+import {
+    createSession, getSession, getUserById, getUserByLogin,
+    insertUser, removeSession, updateAttempts, updateSessionExpiry, updateTime
+} from "./model"
 import bcrypt from "bcrypt"
 import { nanoid } from "nanoid"
 import { cookies } from "next/headers"
@@ -16,6 +19,7 @@ export const handleSignup = async (prevState: IState, form: FormData) => {
     const surname = form.get("surname") as string
     const login = form.get("login") as string
     let password = form.get("password") as string
+    let attempts = 0, time = 0;
 
     if (!name.trim() || !surname.trim() || !login.trim() || !password.trim()) {
         return { message: "Please fill all the fields" }
@@ -32,7 +36,7 @@ export const handleSignup = async (prevState: IState, form: FormData) => {
 
     password = await bcrypt.hash(password, 10)
 
-    const result = insertUser({ login, password, name, surname })
+    const result = insertUser({ login, password, name, surname, time, attempts })
     if (result.changes) {
         return redirect("/login")
     } else {
@@ -45,20 +49,38 @@ export const handleLogin = async (state: IState, form: FormData) => {
     const password = form.get("password") as string
     const found = getUserByLogin(login)
 
+
     if (!found) {
         return { message: "User not found" }
     }
 
+    let attempts = found?.attempts
     const result = await bcrypt.compare(password, found.password)
 
+    if (!found.time && found.attempts === 3) {
+        updateTime(found.time = Date.now(), found.id)
+        return { message: "You are blocked" }
+    } else if (found.time && (Date.now() - found.time) > 60000) {
+        updateAttempts(found.attempts = 0, found.id)
+        updateTime(found.time = 0, found.id)
+
+        return redirect("/login")
+    }
+
     if (!result) {
+        attempts++
+        if (found.attempts < 3) {
+            updateAttempts(attempts, found.id)
+        }
+
         return { message: "Wrong credentials" }
+
     }
 
     const token = nanoid()
     createSession(found.id, token);
     (await cookies()).set("token", token)
-
+    updateAttempts(found.attempts = 0, found.id)
     return redirect("/profile")
 
 }
